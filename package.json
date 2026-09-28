@@ -1,0 +1,18 @@
+{
+  "name": "anaadi-pm",
+  "version": "1.0.0",
+  "description": "Small project & task management tool for Anaadi Foundation",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,magenta \"npm:dev --prefix server\" \"npm:dev --prefix client\"",
+    "setup": "npm install --prefix server && npm install --prefix client",
+    "prisma:migrate": "npm run prisma:migrate --prefix server",
+    "build": "npm install --prefix client && npm run build --prefix client && npm install --prefix server && npm run prisma:deploy --prefix server",
+    "start": "npm run start --prefix server"
+  },
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}
