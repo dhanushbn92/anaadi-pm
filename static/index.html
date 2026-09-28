@@ -1,0 +1,846 @@
+<title>Anaadi PM</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #F5F7F4;
+    --surface: #FFFFFF;
+    --surface-2: #EEF1EC;
+    --border: #DCE2D7;
+    --text: #1A2420;
+    --text-muted: #5B6960;
+    --accent: #1F6F65;
+    --accent-strong: #154F48;
+    --accent-soft: #E1F0ED;
+    --gold: #B9822C;
+    --gold-soft: #FBF0DC;
+    --danger: #B3402F;
+    --danger-soft: #FBEAE6;
+    --success: #2E8B57;
+    --success-soft: #E4F5EA;
+    --shadow: 0 1px 2px rgba(20, 30, 25, 0.06), 0 4px 14px rgba(20, 30, 25, 0.06);
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111714;
+      --surface: #1A2320;
+      --surface-2: #202B26;
+      --border: #2C3933;
+      --text: #E7ECE8;
+      --text-muted: #93A49A;
+      --accent: #57C4B4;
+      --accent-strong: #7ED6C8;
+      --accent-soft: #1C3934;
+      --gold: #E0AD5C;
+      --gold-soft: #3A2E19;
+      --danger: #E2796A;
+      --danger-soft: #3A2320;
+      --success: #74CC98;
+      --success-soft: #1D3427;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #111714;
+    --surface: #1A2320;
+    --surface-2: #202B26;
+    --border: #2C3933;
+    --text: #E7ECE8;
+    --text-muted: #93A49A;
+    --accent: #57C4B4;
+    --accent-strong: #7ED6C8;
+    --accent-soft: #1C3934;
+    --gold: #E0AD5C;
+    --gold-soft: #3A2E19;
+    --danger: #E2796A;
+    --danger-soft: #3A2320;
+    --success: #74CC98;
+    --success-soft: #1D3427;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding-inline: 16px;
+  }
+  h1, h2, h3 { font-family: 'Fraunces', Georgia, serif; margin: 0 0 4px; font-weight: 600; text-wrap: balance; }
+  p { margin: 0 0 8px; color: var(--text-muted); line-height: 1.5; }
+  a { color: var(--accent-strong); }
+  .muted { color: var(--text-muted); font-size: 0.85rem; }
+  button, input, textarea, select { font-family: inherit; }
+
+  /* ---------- shell ---------- */
+  #topbar {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 4px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    margin-inline: -16px;
+    padding-inline: 16px;
+  }
+  .brand { display: flex; align-items: baseline; gap: 8px; text-decoration: none; color: var(--text); cursor: pointer; background: none; border: none; padding: 0; }
+  .brand-mark { font-family: 'Fraunces', serif; font-weight: 700; font-size: 1.15rem; }
+  .brand-sub { font-size: 0.72rem; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .viewer { display: flex; align-items: center; gap: 8px; }
+  .viewer-name { font-size: 0.85rem; color: var(--text-muted); }
+
+  #page { max-width: 1080px; margin: 0 auto; padding-bottom: 60px; }
+
+  .avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; display: inline-block; background: var(--surface-2); vertical-align: middle; }
+  .avatar-fallback { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; color: #fff; vertical-align: middle; }
+  .avatar-sm, .avatar-fallback.sm { width: 20px; height: 20px; font-size: 0.65rem; }
+
+  /* ---------- buttons ---------- */
+  .btn { border: none; border-radius: 8px; padding: 9px 16px; font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s, opacity .15s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-strong); }
+  .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface-2); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  .btn-danger:hover { background: var(--danger-soft); }
+  .btn-small { padding: 4px 10px; font-size: 0.78rem; }
+  .btn-icon { padding: 4px 8px; }
+  .btn-add { width: 100%; margin-top: 8px; border: 1px dashed var(--border); background: transparent; color: var(--text-muted); }
+  .btn-add:hover { background: var(--surface); border-color: var(--accent); color: var(--accent-strong); }
+
+  /* ---------- page header ---------- */
+  .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin: 20px 0 20px; }
+  .page-header h1 { font-size: 1.6rem; }
+
+  /* ---------- dashboard ---------- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 16px; cursor: pointer; text-align: left;
+    display: flex; flex-direction: column; gap: 10px; transition: transform .12s, box-shadow .12s;
+  }
+  .card:hover { transform: translateY(-2px); }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .card-top h3 { font-size: 1.05rem; }
+  .card-desc { font-size: 0.85rem; margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-foot { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+  .pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 100px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; letter-spacing: 0.01em; }
+  .pill-active { background: var(--success-soft); color: var(--success); }
+  .pill-on_hold { background: var(--gold-soft); color: var(--gold); }
+  .pill-completed { background: var(--accent-soft); color: var(--accent-strong); }
+  .pill-archived { background: var(--surface-2); color: var(--text-muted); }
+
+  .progress { width: 100%; height: 7px; background: var(--surface-2); border-radius: 100px; overflow: hidden; }
+  .progress > div { height: 100%; background: var(--accent); border-radius: 100px; transition: width .25s; }
+
+  .empty { text-align: center; padding: 60px 20px; border: 1px dashed var(--border); border-radius: var(--radius); background: var(--surface); }
+
+  /* ---------- project view ---------- */
+  .back-link { display: inline-flex; align-items: center; gap: 4px; font-size: 0.85rem; text-decoration: none; margin-bottom: 10px; background: none; border: none; color: var(--accent-strong); cursor: pointer; padding: 0; }
+  .project-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .project-actions { display: flex; gap: 8px; }
+  .summary-bar {
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 18px; margin: 14px 0 22px;
+  }
+  .summary-progress { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 6px; }
+  .summary-progress span { font-size: 0.78rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .field-inline { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; }
+  .field-inline select { text-transform: none; letter-spacing: normal; font-weight: 400; }
+
+  .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 720px) { .board { grid-template-columns: 1fr; } }
+  .col { background: var(--surface-2); border-radius: var(--radius); padding: 10px; min-height: 140px; transition: background .12s; }
+  .col.drag-over { background: var(--accent-soft); }
+  .col-head { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px 10px; }
+  .col-head h3 { font-size: 0.88rem; text-transform: uppercase; letter-spacing: .03em; font-family: 'IBM Plex Sans'; font-weight: 700; color: var(--text-muted); }
+  .col-count { font-size: 0.78rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .col-body { display: flex; flex-direction: column; gap: 8px; }
+
+  .task {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px;
+    cursor: grab; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 6px; text-align: left;
+  }
+  .task:active { cursor: grabbing; }
+  .task-top { display: flex; align-items: center; gap: 7px; }
+  .task-title { font-size: 0.87rem; font-weight: 600; flex: 1; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-low { background: #8FA79C; }
+  .dot-medium { background: var(--gold); }
+  .dot-high { background: var(--danger); }
+  .task-meta { display: flex; justify-content: space-between; align-items: center; font-size: 0.74rem; color: var(--text-muted); }
+  .task-assignee { display: flex; align-items: center; gap: 5px; }
+  .task-due.overdue { color: var(--danger); font-weight: 600; }
+
+  /* ---------- modal ---------- */
+  #modal-root:empty { display: none; }
+  .overlay { position: fixed; inset: 0; background: rgba(10, 16, 13, 0.5); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
+  .modal { background: var(--surface); border-radius: var(--radius); width: 100%; max-width: 500px; max-height: 88vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+  .modal-head { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px 0; }
+  .modal-body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 13px; }
+  .modal-divider { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
+
+  label { display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; font-weight: 600; }
+  input, textarea, select {
+    font-size: 0.9rem; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); color: var(--text); font-weight: 400;
+  }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  textarea { resize: vertical; font-family: inherit; }
+  .row2 { display: flex; gap: 10px; }
+  .row2 > label { flex: 1; }
+  .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+  .actions-split { justify-content: space-between; align-items: center; }
+
+  .banner { padding: 9px 12px; border-radius: 7px; font-size: 0.83rem; }
+  .banner-error { background: var(--danger-soft); color: var(--danger); }
+  .banner-info { background: var(--accent-soft); color: var(--accent-strong); }
+
+  .typeahead { position: relative; }
+  .typeahead-menu {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); z-index: 5;
+    max-height: 220px; overflow-y: auto;
+  }
+  .typeahead-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; cursor: pointer; font-size: 0.85rem; }
+  .typeahead-item:hover, .typeahead-item.active { background: var(--surface-2); }
+
+  .comments { display: flex; flex-direction: column; gap: 9px; max-height: 200px; overflow-y: auto; }
+  .comment { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; }
+  .comment-meta { display: flex; align-items: center; gap: 6px; font-size: 0.76rem; margin-bottom: 3px; }
+  .comment-meta b { font-size: 0.8rem; }
+  .comment p { margin: 0; color: var(--text); font-size: 0.87rem; }
+  .comment-form { display: flex; flex-direction: column; gap: 8px; }
+
+  .toast-wrap { position: fixed; bottom: max(20px, env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); z-index: 80; display: flex; flex-direction: column; gap: 8px; }
+  .toast { background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 0.85rem; box-shadow: var(--shadow); }
+
+  .who-screen { max-width: 420px; margin: 70px auto; text-align: center; }
+  .who-buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .who-btn {
+    display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface); cursor: pointer; text-align: left;
+    font-size: 1rem; font-weight: 600; color: var(--text); box-shadow: var(--shadow);
+    transition: transform .12s, border-color .12s;
+  }
+  .who-btn:hover { transform: translateY(-1px); border-color: var(--accent); }
+  .who-btn .avatar-fallback { width: 34px; height: 34px; font-size: 0.95rem; }
+</style>
+
+<div id="topbar">
+  <button class="brand" id="brand-btn" type="button">
+    <span class="brand-mark">Anaadi PM</span>
+  </button>
+  <div class="viewer" id="viewer-slot"></div>
+</div>
+<div id="page"><div class="muted" style="padding:40px 0;">Loading…</div></div>
+<div id="modal-root"></div>
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------------- utilities ----------------
+  function esc(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function fmtDate(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  function isOverdue(iso, status) {
+    if (!iso || status === 'done') return false;
+    var d = new Date(iso);
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    return d < today;
+  }
+  function todayISO() {
+    var d = new Date(); return d.toISOString().slice(0, 10);
+  }
+  function initials(name) {
+    return (name || '?').trim().charAt(0).toUpperCase() || '?';
+  }
+
+  var STATUS_LABEL = { active: 'Active', on_hold: 'On hold', completed: 'Completed', archived: 'Archived' };
+  var TASK_STATUSES = [['todo', 'To do'], ['in_progress', 'In progress'], ['done', 'Done']];
+  var PEOPLE = ['Dhanush', 'Rishi', 'Keshav'];
+  var PEOPLE_COLORS = { Dhanush: '#1F6F65', Rishi: '#B9822C', Keshav: '#6E5B9E' };
+  var WHO_KEY = 'anaadi_pm_who';
+  var STORE_KEY = 'anaadi_pm_data_v1';
+
+  function uid() { return 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8); }
+  function nowISO() { return new Date().toISOString(); }
+
+  // ---------------- state ----------------
+  var state = {
+    who: null,
+    projects: [],
+    tasks: [],
+    comments: [],
+    route: { page: 'dashboard', projectId: null }
+  };
+
+  var pageEl = document.getElementById('page');
+  var modalRoot = document.getElementById('modal-root');
+  var toastWrap = document.getElementById('toast-wrap');
+
+  function showToast(msg) {
+    var t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    toastWrap.appendChild(t);
+    setTimeout(function () { t.remove(); }, 4200);
+  }
+
+  // ---------------- local storage (everything lives in this browser only) ----------------
+  function loadStore() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        return {
+          projects: parsed.projects || [],
+          tasks: parsed.tasks || [],
+          comments: parsed.comments || []
+        };
+      }
+    } catch (e) {}
+    return { projects: [], tasks: [], comments: [] };
+  }
+  function saveStore() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        projects: state.projects, tasks: state.tasks, comments: state.comments
+      }));
+    } catch (e) {
+      showToast('Could not save — this browser’s storage may be full or blocked.');
+    }
+    if (state.who) renderBoard();
+  }
+
+  // ---------------- fixed people ----------------
+  function colorFor(name) { return PEOPLE_COLORS[name] || '#8FA79C'; }
+  function avatarHTML(name, size) {
+    var cls = size === 'sm' ? 'avatar-fallback sm' : 'avatar-fallback';
+    var bg = colorFor(name);
+    var letter = esc(initials(name));
+    return '<span class="' + cls + '" style="background:' + esc(bg) + '">' + letter + '</span>';
+  }
+
+  // ---------------- derived data ----------------
+  function tasksForProject(pid) {
+    return state.tasks.filter(function (t) { return t.projectId === pid; });
+  }
+  function counts(pid) {
+    var ts = tasksForProject(pid);
+    var done = ts.filter(function (t) { return t.status === 'done'; }).length;
+    return { total: ts.length, done: done, progress: ts.length ? Math.round((done / ts.length) * 100) : 0 };
+  }
+
+  // ---------------- data actions (synchronous, local only) ----------------
+  function createProject(data) {
+    var p = {
+      id: uid(),
+      name: data.name.trim(),
+      description: data.description || '',
+      status: 'active',
+      dueDate: data.dueDate || null,
+      createdBy: state.who,
+      createdAt: nowISO(),
+      updatedAt: nowISO()
+    };
+    state.projects.push(p);
+    saveStore();
+    return p;
+  }
+  function updateProject(id, patch) {
+    var p = state.projects.find(function (x) { return x.id === id; });
+    if (!p) return;
+    Object.assign(p, patch, { updatedAt: nowISO() });
+    saveStore();
+  }
+  function deleteProjectCascade(id) {
+    var taskIds = tasksForProject(id).map(function (t) { return t.id; });
+    state.tasks = state.tasks.filter(function (t) { return t.projectId !== id; });
+    state.comments = state.comments.filter(function (c) { return taskIds.indexOf(c.taskId) === -1; });
+    state.projects = state.projects.filter(function (p) { return p.id !== id; });
+    saveStore();
+  }
+  function createTask(projectId, data) {
+    var status = data.status || 'todo';
+    var siblings = tasksForProject(projectId).filter(function (t) { return t.status === status; });
+    var maxOrder = siblings.reduce(function (m, t) { return Math.max(m, t.order || 0); }, -1);
+    var t = {
+      id: uid(),
+      projectId: projectId,
+      title: data.title.trim(),
+      description: data.description || '',
+      status: status,
+      priority: data.priority || 'medium',
+      assignee: data.assignee || null,
+      dueDate: data.dueDate || null,
+      createdBy: state.who,
+      createdAt: nowISO(),
+      order: maxOrder + 1
+    };
+    state.tasks.push(t);
+    saveStore();
+    return t;
+  }
+  function updateTask(id, patch) {
+    var t = state.tasks.find(function (x) { return x.id === id; });
+    if (!t) return;
+    Object.assign(t, patch);
+    saveStore();
+  }
+  function deleteTaskCascade(id) {
+    state.tasks = state.tasks.filter(function (t) { return t.id !== id; });
+    state.comments = state.comments.filter(function (c) { return c.taskId !== id; });
+    saveStore();
+  }
+  function addComment(taskId, body) {
+    var c = { id: uid(), taskId: taskId, body: body.trim(), author: state.who, createdAt: nowISO() };
+    state.comments.push(c);
+    saveStore();
+    return c;
+  }
+  function commentsForTask(taskId) {
+    return state.comments
+      .filter(function (c) { return c.taskId === taskId; })
+      .sort(function (a, b) { return (a.createdAt || '').localeCompare(b.createdAt || ''); });
+  }
+
+  // ---------------- routing ----------------
+  function goDashboard() { state.route = { page: 'dashboard', projectId: null }; renderBoard(); }
+  function goProject(id) { state.route = { page: 'project', projectId: id }; renderBoard(); }
+
+  // ---------------- modal plumbing ----------------
+  function openModal(html, mount) {
+    modalRoot.innerHTML = '<div class="overlay" id="overlay"><div class="modal" role="dialog">' + html + '</div></div>';
+    document.getElementById('overlay').addEventListener('mousedown', function (e) {
+      if (e.target.id === 'overlay') closeModal();
+    });
+    if (mount) mount(modalRoot);
+  }
+  function closeModal() { modalRoot.innerHTML = ''; }
+
+  function twoStepDelete(btn, label, onConfirm) {
+    var armed = false;
+    var timer = null;
+    btn.textContent = label;
+    btn.addEventListener('click', function () {
+      if (!armed) {
+        armed = true;
+        btn.textContent = 'Click again to confirm';
+        btn.classList.add('btn-danger');
+        timer = setTimeout(function () { armed = false; btn.textContent = label; }, 4000);
+      } else {
+        clearTimeout(timer);
+        btn.disabled = true;
+        btn.textContent = 'Deleting…';
+        onConfirm();
+      }
+    });
+  }
+
+  // ---------------- assignee picker ----------------
+  function assigneeFieldHTML(current) {
+    var opts = '<option value="">Unassigned</option>' + PEOPLE.map(function (p) {
+      return '<option value="' + esc(p) + '"' + (current === p ? ' selected' : '') + '>' + esc(p) + '</option>';
+    }).join('');
+    return '<label>Assignee<select data-role="assignee-select">' + opts + '</select></label>';
+  }
+
+  // ---------------- forms: new project ----------------
+  function openNewProjectModal() {
+    var html =
+      '<div class="modal-head"><h2>New project</h2>' +
+      '<button class="btn btn-ghost btn-icon" data-role="close" type="button">✕</button></div>' +
+      '<form class="modal-body" id="f-new-project">' +
+      '<div class="banner banner-error" id="np-error" hidden></div>' +
+      '<label>Project name<input id="np-name" required autofocus></label>' +
+      '<label>Description<textarea id="np-desc" rows="3"></textarea></label>' +
+      '<label>Due date<input type="date" id="np-due"></label>' +
+      '<div class="actions"><button type="button" class="btn btn-ghost" data-role="cancel">Cancel</button>' +
+      '<button type="submit" class="btn btn-primary" id="np-submit">Create project</button></div>' +
+      '</form>';
+    openModal(html, function (root) {
+      root.querySelector('[data-role="close"]').onclick = closeModal;
+      root.querySelector('[data-role="cancel"]').onclick = closeModal;
+      root.querySelector('#f-new-project').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = root.querySelector('#np-name').value.trim();
+        if (!name) return;
+        var p = createProject({
+          name: name,
+          description: root.querySelector('#np-desc').value.trim(),
+          dueDate: root.querySelector('#np-due').value || null
+        });
+        closeModal();
+        goProject(p.id);
+      });
+    });
+  }
+
+  // ---------------- forms: new task ----------------
+  function openNewTaskModal(projectId, status) {
+    var html =
+      '<div class="modal-head"><h2>New task</h2>' +
+      '<button class="btn btn-ghost btn-icon" data-role="close" type="button">✕</button></div>' +
+      '<form class="modal-body" id="f-new-task">' +
+      '<div class="banner banner-error" id="nt-error" hidden></div>' +
+      '<label>Title<input id="nt-title" required autofocus></label>' +
+      '<label>Description<textarea id="nt-desc" rows="3"></textarea></label>' +
+      '<div class="row2">' +
+      '<label>Priority<select id="nt-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></label>' +
+      '<label>Due date<input type="date" id="nt-due"></label>' +
+      '</div>' +
+      assigneeFieldHTML(null) +
+      '<div class="actions"><button type="button" class="btn btn-ghost" data-role="cancel">Cancel</button>' +
+      '<button type="submit" class="btn btn-primary" id="nt-submit">Add task</button></div>' +
+      '</form>';
+    openModal(html, function (root) {
+      root.querySelector('[data-role="close"]').onclick = closeModal;
+      root.querySelector('[data-role="cancel"]').onclick = closeModal;
+      root.querySelector('#f-new-task').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var title = root.querySelector('#nt-title').value.trim();
+        if (!title) return;
+        createTask(projectId, {
+          title: title,
+          description: root.querySelector('#nt-desc').value.trim(),
+          priority: root.querySelector('#nt-priority').value,
+          status: status,
+          dueDate: root.querySelector('#nt-due').value || null,
+          assignee: root.querySelector('[data-role="assignee-select"]').value || null
+        });
+        closeModal();
+      });
+    });
+  }
+
+  // ---------------- task detail modal ----------------
+  function openTaskModal(task) {
+    var statusOptions = TASK_STATUSES.map(function (s) {
+      return '<option value="' + s[0] + '"' + (task.status === s[0] ? ' selected' : '') + '>' + s[1] + '</option>';
+    }).join('');
+    var html =
+      '<div class="modal-head"><h2>Task details</h2>' +
+      '<button class="btn btn-ghost btn-icon" data-role="close" type="button">✕</button></div>' +
+      '<div class="modal-body">' +
+      '<div class="banner banner-error" id="td-error" hidden></div>' +
+      '<label>Title<input id="td-title" value="' + esc(task.title) + '"></label>' +
+      '<label>Description<textarea id="td-desc" rows="3">' + esc(task.description || '') + '</textarea></label>' +
+      '<div class="row2">' +
+      '<label>Status<select id="td-status">' + statusOptions + '</select></label>' +
+      '<label>Priority<select id="td-priority">' +
+      ['low', 'medium', 'high'].map(function (p) { return '<option value="' + p + '"' + (task.priority === p ? ' selected' : '') + '>' + p.charAt(0).toUpperCase() + p.slice(1) + '</option>'; }).join('') +
+      '</select></label></div>' +
+      '<div class="row2">' + assigneeFieldHTML(task.assignee) +
+      '<label>Due date<input type="date" id="td-due" value="' + esc(task.dueDate || '') + '"></label></div>' +
+      '<div class="actions actions-split"><button type="button" class="btn btn-danger" id="td-delete">Delete task</button>' +
+      '<div class="actions"><button type="button" class="btn btn-ghost" data-role="cancel">Cancel</button>' +
+      '<button type="button" class="btn btn-primary" id="td-save">Save</button></div></div>' +
+      '<hr class="modal-divider">' +
+      '<h3 style="font-size:1rem;">Comments</h3>' +
+      '<div class="comments" id="td-comments"><p class="muted">Loading…</p></div>' +
+      '<form class="comment-form" id="td-comment-form">' +
+      '<div class="banner banner-error" id="tc-error" hidden></div>' +
+      '<textarea id="td-comment-body" rows="2" placeholder="Comment as ' + esc(state.who) + '…"></textarea>' +
+      '<button type="submit" class="btn btn-ghost" style="align-self:flex-start;">Add comment</button>' +
+      '</form>' +
+      '</div>';
+
+    openModal(html, function (root) {
+      root.querySelector('[data-role="close"]').onclick = closeModal;
+      root.querySelector('[data-role="cancel"]').onclick = closeModal;
+
+      root.querySelector('#td-save').addEventListener('click', function () {
+        updateTask(task.id, {
+          title: root.querySelector('#td-title').value.trim() || task.title,
+          description: root.querySelector('#td-desc').value.trim(),
+          status: root.querySelector('#td-status').value,
+          priority: root.querySelector('#td-priority').value,
+          dueDate: root.querySelector('#td-due').value || null,
+          assignee: root.querySelector('[data-role="assignee-select"]').value || null
+        });
+        closeModal();
+      });
+
+      twoStepDelete(root.querySelector('#td-delete'), 'Delete task', function () {
+        deleteTaskCascade(task.id);
+        closeModal();
+      });
+
+      var commentsEl = root.querySelector('#td-comments');
+      renderComments(commentsEl, commentsForTask(task.id));
+
+      root.querySelector('#td-comment-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var ta = root.querySelector('#td-comment-body');
+        var body = ta.value.trim();
+        if (!body) return;
+        addComment(task.id, body);
+        ta.value = '';
+        renderComments(commentsEl, commentsForTask(task.id));
+      });
+    });
+  }
+
+  function renderComments(el, docs) {
+    if (!docs.length) { el.innerHTML = '<p class="muted">No comments yet.</p>'; return; }
+    el.innerHTML = docs.map(function (c) {
+      return '<div class="comment"><div class="comment-meta">' + avatarHTML(c.author, 'sm') +
+        '<b>' + esc(c.author || 'Someone') + '</b><span class="muted">' + esc(fmtDate(c.createdAt)) + '</span></div>' +
+        '<p>' + esc(c.body) + '</p></div>';
+    }).join('');
+  }
+
+  // ---------------- project edit modal ----------------
+  function openEditProjectModal(project) {
+    var html =
+      '<div class="modal-head"><h2>Edit project</h2>' +
+      '<button class="btn btn-ghost btn-icon" data-role="close" type="button">✕</button></div>' +
+      '<form class="modal-body" id="f-edit-project">' +
+      '<div class="banner banner-error" id="ep-error" hidden></div>' +
+      '<label>Project name<input id="ep-name" value="' + esc(project.name) + '" required></label>' +
+      '<label>Description<textarea id="ep-desc" rows="3">' + esc(project.description || '') + '</textarea></label>' +
+      '<label>Due date<input type="date" id="ep-due" value="' + esc(project.dueDate || '') + '"></label>' +
+      '<div class="actions actions-split"><button type="button" class="btn btn-danger" id="ep-delete">Delete project</button>' +
+      '<div class="actions"><button type="button" class="btn btn-ghost" data-role="cancel">Cancel</button>' +
+      '<button type="submit" class="btn btn-primary" id="ep-submit">Save</button></div></div>' +
+      '</form>';
+    openModal(html, function (root) {
+      root.querySelector('[data-role="close"]').onclick = closeModal;
+      root.querySelector('[data-role="cancel"]').onclick = closeModal;
+      root.querySelector('#f-edit-project').addEventListener('submit', function (e) {
+        e.preventDefault();
+        updateProject(project.id, {
+          name: root.querySelector('#ep-name').value.trim() || project.name,
+          description: root.querySelector('#ep-desc').value.trim(),
+          dueDate: root.querySelector('#ep-due').value || null
+        });
+        closeModal();
+      });
+      twoStepDelete(root.querySelector('#ep-delete'), 'Delete project', function () {
+        deleteProjectCascade(project.id);
+        closeModal();
+        goDashboard();
+      });
+    });
+  }
+
+  // ---------------- rendering: dashboard ----------------
+  function dashboardHTML() {
+    var projects = state.projects.slice().sort(function (a, b) {
+      return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+    });
+    var header = '<div class="page-header"><div><h1>Projects</h1><p>Saved in this browser only — nothing is synced between devices.</p></div>' +
+      '<button class="btn btn-primary" id="btn-new-project" type="button">+ New project</button></div>';
+
+    if (!projects.length) {
+      return header + '<div class="empty"><p>No projects yet.</p><button class="btn btn-primary" id="btn-new-project-2" type="button">Create your first project</button></div>';
+    }
+
+    var cards = projects.map(function (p) {
+      var c = counts(p.id);
+      var pill = '<span class="pill pill-' + esc(p.status) + '">' + esc(STATUS_LABEL[p.status] || p.status) + '</span>';
+      var due = p.dueDate ? '<div class="muted">Due ' + esc(fmtDate(p.dueDate)) + '</div>' : '';
+      return '<button class="card" type="button" data-project="' + esc(p.id) + '">' +
+        '<div class="card-top"><h3>' + esc(p.name) + '</h3>' + pill + '</div>' +
+        (p.description ? '<p class="card-desc">' + esc(p.description) + '</p>' : '') +
+        '<div class="progress"><div style="width:' + c.progress + '%"></div></div>' +
+        '<div class="card-foot"><span>' + c.progress + '% complete</span><span>' + c.done + '/' + c.total + ' tasks</span></div>' +
+        due +
+        '</button>';
+    }).join('');
+
+    return header + '<div class="grid">' + cards + '</div>';
+  }
+
+  function wireDashboard(el) {
+    var btn1 = el.querySelector('#btn-new-project');
+    if (btn1) btn1.onclick = openNewProjectModal;
+    var btn2 = el.querySelector('#btn-new-project-2');
+    if (btn2) btn2.onclick = openNewProjectModal;
+    Array.prototype.forEach.call(el.querySelectorAll('[data-project]'), function (card) {
+      card.addEventListener('click', function () { goProject(card.getAttribute('data-project')); });
+    });
+  }
+
+  // ---------------- rendering: project / board ----------------
+  var dragTaskId = null;
+
+  function projectHTML(project) {
+    var c = counts(project.id);
+    var due = project.dueDate ? '<span class="muted">Due ' + esc(fmtDate(project.dueDate)) + '</span>' : '';
+
+    var cols = TASK_STATUSES.map(function (s) {
+      var key = s[0], label = s[1];
+      var ts = tasksForProject(project.id).filter(function (t) { return t.status === key; })
+        .sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+      var cards = ts.map(taskCardHTML).join('');
+      return '<div class="col" data-status="' + key + '">' +
+        '<div class="col-head"><h3>' + label + '</h3><span class="col-count">' + ts.length + '</span></div>' +
+        '<div class="col-body">' + cards + '</div>' +
+        '<button class="btn btn-add" data-add-status="' + key + '" type="button">+ Add task</button>' +
+        '</div>';
+    }).join('');
+
+    return '<button class="back-link" id="btn-back" type="button">← All projects</button>' +
+      '<div class="project-head"><div><h1>' + esc(project.name) + '</h1>' +
+      (project.description ? '<p>' + esc(project.description) + '</p>' : '') + '</div>' +
+      '<div class="project-actions"><button class="btn btn-ghost" id="btn-edit-project" type="button">Edit</button></div></div>' +
+      '<div class="summary-bar">' +
+      '<div class="summary-progress"><div class="progress"><div style="width:' + c.progress + '%"></div></div>' +
+      '<span>' + c.progress + '% · ' + c.done + '/' + c.total + ' tasks done</span></div>' +
+      '<label class="field-inline">Status<select id="project-status">' +
+      Object.keys(STATUS_LABEL).map(function (k) {
+        return '<option value="' + k + '"' + (project.status === k ? ' selected' : '') + '>' + STATUS_LABEL[k] + '</option>';
+      }).join('') + '</select></label>' + due +
+      '</div>' +
+      '<div class="board">' + cols + '</div>';
+  }
+
+  function taskCardHTML(t) {
+    var overdue = isOverdue(t.dueDate, t.status);
+    return '<div class="task" draggable="true" data-task="' + esc(t.id) + '">' +
+      '<div class="task-top"><span class="dot dot-' + esc(t.priority) + '"></span><span class="task-title">' + esc(t.title) + '</span></div>' +
+      '<div class="task-meta">' +
+      (t.assignee ? '<span class="task-assignee">' + avatarHTML(t.assignee, 'sm') + esc(t.assignee) + '</span>' : '<span></span>') +
+      (t.dueDate ? '<span class="task-due' + (overdue ? ' overdue' : '') + '">' + esc(fmtDate(t.dueDate)) + '</span>' : '') +
+      '</div></div>';
+  }
+
+  function wireProject(el, project) {
+    el.querySelector('#btn-back').onclick = goDashboard;
+    el.querySelector('#btn-edit-project').onclick = function () { openEditProjectModal(project); };
+    el.querySelector('#project-status').addEventListener('change', function (e) {
+      updateProject(project.id, { status: e.target.value });
+    });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-add-status]'), function (btn) {
+      btn.addEventListener('click', function () { openNewTaskModal(project.id, btn.getAttribute('data-add-status')); });
+    });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-task]'), function (card) {
+      var id = card.getAttribute('data-task');
+      card.addEventListener('click', function () {
+        var task = state.tasks.find(function (t) { return t.id === id; });
+        if (task) openTaskModal(task);
+      });
+      card.addEventListener('dragstart', function (e) {
+        dragTaskId = id;
+        e.dataTransfer.setData('text/plain', id);
+      });
+    });
+    Array.prototype.forEach.call(el.querySelectorAll('.col'), function (col) {
+      col.addEventListener('dragover', function (e) { e.preventDefault(); col.classList.add('drag-over'); });
+      col.addEventListener('dragleave', function () { col.classList.remove('drag-over'); });
+      col.addEventListener('drop', function (e) {
+        e.preventDefault();
+        col.classList.remove('drag-over');
+        var id = e.dataTransfer.getData('text/plain') || dragTaskId;
+        var status = col.getAttribute('data-status');
+        var task = state.tasks.find(function (t) { return t.id === id; });
+        if (!task || task.status === status) return;
+        updateTask(id, { status: status });
+      });
+    });
+  }
+
+  // ---------------- board root ----------------
+  function renderBoard() {
+    if (state.route.page === 'dashboard') {
+      pageEl.innerHTML = dashboardHTML();
+      wireDashboard(pageEl);
+    } else {
+      var project = state.projects.find(function (p) { return p.id === state.route.projectId; });
+      if (!project) {
+        pageEl.innerHTML = '<p class="muted" style="margin-top:30px;">Project not found or was deleted. <a href="#" id="back2">Back to all projects</a></p>';
+        pageEl.querySelector('#back2').addEventListener('click', function (e) { e.preventDefault(); goDashboard(); });
+        return;
+      }
+      pageEl.innerHTML = projectHTML(project);
+      wireProject(pageEl, project);
+    }
+  }
+
+  // ---------------- shell / boot ----------------
+  function renderShell() {
+    var slot = document.getElementById('viewer-slot');
+    slot.innerHTML = avatarHTML(state.who) + '<span class="viewer-name">' + esc(state.who) + '</span>' +
+      '<button class="btn btn-ghost btn-small" id="btn-switch-who" type="button">Switch</button>';
+    document.getElementById('btn-switch-who').onclick = showWhoPicker;
+    document.getElementById('brand-btn').onclick = goDashboard;
+  }
+
+  // ---------------- who-are-you picker ----------------
+  function whoPickerHTML() {
+    var buttons = PEOPLE.map(function (name) {
+      return '<button class="who-btn" type="button" data-who="' + esc(name) + '">' +
+        avatarHTML(name) + '<span>' + esc(name) + '</span></button>';
+    }).join('');
+    return '<div class="who-screen"><h1>Who’s this?</h1>' +
+      '<p>Pick your name to continue — it’s used to attribute the tasks and comments you add on this board.</p>' +
+      '<div class="who-buttons">' + buttons + '</div></div>';
+  }
+  function showWhoPicker() {
+    pageEl.innerHTML = whoPickerHTML();
+    Array.prototype.forEach.call(pageEl.querySelectorAll('[data-who]'), function (btn) {
+      btn.addEventListener('click', function () { chooseWho(btn.getAttribute('data-who')); });
+    });
+  }
+  function chooseWho(name) {
+    state.who = name;
+    try { localStorage.setItem(WHO_KEY, name); } catch (e) {}
+    boot();
+  }
+
+  function boot() {
+    renderShell();
+    renderBoard();
+  }
+
+  function init() {
+    var stored = loadStore();
+    state.projects = stored.projects;
+    state.tasks = stored.tasks;
+    state.comments = stored.comments;
+
+    var saved = null;
+    try { saved = localStorage.getItem(WHO_KEY); } catch (e) {}
+    if (saved && PEOPLE.indexOf(saved) !== -1) {
+      state.who = saved;
+      boot();
+    } else {
+      showWhoPicker();
+    }
+
+    // Keep other tabs of this same browser in sync (each device still has its own copy).
+    window.addEventListener('storage', function (e) {
+      if (e.key !== STORE_KEY) return;
+      var fresh = loadStore();
+      state.projects = fresh.projects;
+      state.tasks = fresh.tasks;
+      state.comments = fresh.comments;
+      if (state.who) renderBoard();
+    });
+  }
+
+  init();
+})();
+</script>
