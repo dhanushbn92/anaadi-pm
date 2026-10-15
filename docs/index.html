@@ -1,6 +1,13 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Anaadi PM</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+  [hidden] { display: none !important; }
 
   :root {
     --bg: #F5F7F4;
@@ -234,7 +241,23 @@
   }
   .who-btn:hover { transform: translateY(-1px); border-color: var(--accent); }
   .who-btn .avatar-fallback { width: 34px; height: 34px; font-size: 0.95rem; }
+
+  .sync-pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 100px;
+    border: 1px solid var(--border); background: transparent; color: var(--text-muted);
+    font-size: 0.74rem; font-weight: 600; cursor: pointer;
+  }
+  .sync-pill:hover { background: var(--surface-2); }
+  .sync-pill::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); }
+  .sync-ok::before { background: var(--success); }
+  .sync-syncing::before { background: var(--gold); }
+  .sync-error { color: var(--danger); border-color: var(--danger); }
+  .sync-error::before { background: var(--danger); }
+  .invite-input { font-size: 0.78rem; }
+  @media (max-width: 520px) { .viewer-name { display: none; } }
 </style>
+</head>
+<body>
 
 <div id="topbar">
   <button class="brand" id="brand-btn" type="button">
@@ -292,6 +315,8 @@
     projects: [],
     tasks: [],
     comments: [],
+    openTaskId: null,
+    picking: false,
     route: { page: 'dashboard', projectId: null }
   };
 
@@ -307,7 +332,7 @@
     setTimeout(function () { t.remove(); }, 4200);
   }
 
-  // ---------------- local storage (everything lives in this browser only) ----------------
+  // ---------------- local cache (this device's copy of the board) ----------------
   function loadStore() {
     try {
       var raw = localStorage.getItem(STORE_KEY);
@@ -322,7 +347,7 @@
     } catch (e) {}
     return { projects: [], tasks: [], comments: [] };
   }
-  function saveStore() {
+  function saveCache() {
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify({
         projects: state.projects, tasks: state.tasks, comments: state.comments
@@ -330,7 +355,6 @@
     } catch (e) {
       showToast('Could not save — this browser’s storage may be full or blocked.');
     }
-    if (state.who) renderBoard();
   }
 
   // ---------------- fixed people ----------------
@@ -352,7 +376,50 @@
     return { total: ts.length, done: done, progress: ts.length ? Math.round((done / ts.length) * 100) : 0 };
   }
 
-  // ---------------- data actions (synchronous, local only) ----------------
+  // ---------------- data actions ----------------
+  // Every change is an op: applied to this device immediately, then (when connected) queued for the shared sheet.
+  function dataOf(item) {
+    var d = Object.assign({}, item);
+    delete d.id;
+    return d;
+  }
+  function upsertOp(type, item) { return { op: 'upsert', type: type, id: item.id, data: dataOf(item) }; }
+  function indexOfId(list, id) {
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return i;
+    return -1;
+  }
+  function listFor(type) {
+    return type === 'project' ? state.projects : type === 'task' ? state.tasks : state.comments;
+  }
+  function applyOpLocal(op) {
+    if (op.op === 'upsert') {
+      var list = listFor(op.type);
+      var item = Object.assign({ id: op.id }, op.data);
+      var i = indexOfId(list, op.id);
+      if (i === -1) list.push(item); else list[i] = item;
+    } else if (op.op === 'patch') {
+      [state.projects, state.tasks, state.comments].forEach(function (l) {
+        var j = indexOfId(l, op.id);
+        if (j !== -1) Object.assign(l[j], op.data);
+      });
+    } else {
+      state.projects = state.projects.filter(function (x) { return x.id !== op.id; });
+      state.tasks = state.tasks.filter(function (x) { return x.id !== op.id; });
+      state.comments = state.comments.filter(function (x) { return x.id !== op.id; });
+    }
+  }
+  function commit(ops) {
+    ops.forEach(applyOpLocal);
+    sync.rev++;
+    saveCache();
+    if (sync.url) {
+      sync.queue = sync.queue.concat(ops);
+      saveQueue();
+      flush();
+    }
+    if (state.who) renderBoard();
+  }
+
   function createProject(data) {
     var p = {
       id: uid(),
@@ -364,22 +431,20 @@
       createdAt: nowISO(),
       updatedAt: nowISO()
     };
-    state.projects.push(p);
-    saveStore();
+    commit([upsertOp('project', p)]);
     return p;
   }
   function updateProject(id, patch) {
-    var p = state.projects.find(function (x) { return x.id === id; });
-    if (!p) return;
-    Object.assign(p, patch, { updatedAt: nowISO() });
-    saveStore();
+    commit([{ op: 'patch', id: id, data: Object.assign({}, patch, { updatedAt: nowISO() }) }]);
   }
   function deleteProjectCascade(id) {
-    var taskIds = tasksForProject(id).map(function (t) { return t.id; });
-    state.tasks = state.tasks.filter(function (t) { return t.projectId !== id; });
-    state.comments = state.comments.filter(function (c) { return taskIds.indexOf(c.taskId) === -1; });
-    state.projects = state.projects.filter(function (p) { return p.id !== id; });
-    saveStore();
+    var ops = [];
+    tasksForProject(id).forEach(function (t) {
+      state.comments.forEach(function (c) { if (c.taskId === t.id) ops.push({ op: 'delete', id: c.id }); });
+      ops.push({ op: 'delete', id: t.id });
+    });
+    ops.push({ op: 'delete', id: id });
+    commit(ops);
   }
   function createTask(projectId, data) {
     var status = data.status || 'todo';
@@ -398,31 +463,308 @@
       createdAt: nowISO(),
       order: maxOrder + 1
     };
-    state.tasks.push(t);
-    saveStore();
+    commit([upsertOp('task', t)]);
     return t;
   }
   function updateTask(id, patch) {
-    var t = state.tasks.find(function (x) { return x.id === id; });
-    if (!t) return;
-    Object.assign(t, patch);
-    saveStore();
+    commit([{ op: 'patch', id: id, data: patch }]);
   }
   function deleteTaskCascade(id) {
-    state.tasks = state.tasks.filter(function (t) { return t.id !== id; });
-    state.comments = state.comments.filter(function (c) { return c.taskId !== id; });
-    saveStore();
+    var ops = state.comments
+      .filter(function (c) { return c.taskId === id; })
+      .map(function (c) { return { op: 'delete', id: c.id }; });
+    ops.push({ op: 'delete', id: id });
+    commit(ops);
   }
   function addComment(taskId, body) {
     var c = { id: uid(), taskId: taskId, body: body.trim(), author: state.who, createdAt: nowISO() };
-    state.comments.push(c);
-    saveStore();
+    commit([upsertOp('comment', c)]);
     return c;
+  }
+  function changedFields(original, next) {
+    var patch = {};
+    Object.keys(next).forEach(function (k) {
+      var a = original[k] === undefined || original[k] === '' ? null : original[k];
+      var b = next[k] === undefined || next[k] === '' ? null : next[k];
+      if (a !== b) patch[k] = next[k];
+    });
+    return patch;
   }
   function commentsForTask(taskId) {
     return state.comments
       .filter(function (c) { return c.taskId === taskId; })
       .sort(function (a, b) { return (a.createdAt || '').localeCompare(b.createdAt || ''); });
+  }
+
+  // ---------------- sync (a Google Sheet, through its Apps Script web app) ----------------
+  var SYNC_URL_KEY = 'anaadi_pm_sync_url';
+  var QUEUE_KEY = 'anaadi_pm_queue_v1';
+  var POLL_MS = 15000;
+  var FULL_REFRESH_MS = 60000;
+  var SYNC_URL_PATTERN = /^https:\/\/script\.google\.com\/(?:a\/macros\/[^\/]+|macros)\/s\/[\w-]+\/exec$/;
+
+  var sync = {
+    url: null,
+    status: 'local',
+    queue: [],
+    flushing: false,
+    polling: false,
+    rev: 0,
+    version: null,
+    sig: '',
+    lastFullAt: 0,
+    retryTimer: null,
+    pollTimer: null
+  };
+
+  function loadSyncSettings() {
+    try { sync.url = localStorage.getItem(SYNC_URL_KEY) || null; } catch (e) {}
+    try { sync.queue = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch (e) { sync.queue = []; }
+    if (!Array.isArray(sync.queue)) sync.queue = [];
+    sync.status = sync.url ? 'syncing' : 'local';
+  }
+  function saveQueue() {
+    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(sync.queue)); } catch (e) {}
+  }
+
+  function parseSyncResponse(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+  function syncGet(url, useVersion) {
+    var q = '?action=list&_=' + Date.now();
+    if (useVersion && sync.version !== null) q += '&v=' + sync.version;
+    return fetch(url + q, { credentials: 'omit' }).then(parseSyncResponse);
+  }
+  function syncPost(ops) {
+    return fetch(sync.url, {
+      method: 'POST',
+      credentials: 'omit',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ ops: ops })
+    }).then(parseSyncResponse);
+  }
+
+  function applyRemote(res, force) {
+    var sig = JSON.stringify(res.records);
+    sync.version = res.version;
+    sync.lastFullAt = Date.now();
+    if (!force && sig === sync.sig) return;
+    sync.sig = sig;
+    var next = { projects: [], tasks: [], comments: [] };
+    res.records.forEach(function (r) {
+      var item = Object.assign({ id: r.id }, r.data);
+      if (r.type === 'project') next.projects.push(item);
+      else if (r.type === 'task') next.tasks.push(item);
+      else if (r.type === 'comment') next.comments.push(item);
+    });
+    state.projects = next.projects;
+    state.tasks = next.tasks;
+    state.comments = next.comments;
+    saveCache();
+    if (state.who) {
+      renderBoard();
+      refreshOpenComments();
+    }
+  }
+
+  function setSyncStatus(s) {
+    sync.status = s;
+    renderSyncPill();
+  }
+  function renderSyncPill() {
+    var el = document.getElementById('sync-pill');
+    if (!el) return;
+    var labels = {
+      local: ['Local only', 'Saved on this device only. Click to share the board with your team.'],
+      syncing: ['Syncing…', 'Talking to the shared board.'],
+      ok: ['Synced', 'Connected to the shared board.'],
+      error: ['Offline', 'Can’t reach the shared board. Your changes are kept and upload automatically.']
+    };
+    var l = labels[sync.status] || labels.local;
+    el.className = 'sync-pill sync-' + sync.status;
+    el.textContent = l[0];
+    el.title = l[1];
+  }
+
+  function flush() {
+    if (!sync.url || sync.flushing || !sync.queue.length) return;
+    clearTimeout(sync.retryTimer);
+    sync.flushing = true;
+    setSyncStatus('syncing');
+    var batch = sync.queue.slice(0, 100);
+    syncPost(batch).then(function (res) {
+      if (!res.ok && res.retry) throw new Error(res.error || 'busy');
+      sync.queue.splice(0, batch.length);
+      saveQueue();
+      sync.flushing = false;
+      if (!res.ok) showToast('Couldn’t save a change: ' + res.error);
+      if (sync.queue.length) { flush(); return; }
+      if (res.ok) {
+        applyRemote(res, true);
+        setSyncStatus('ok');
+      } else {
+        poll(true);
+      }
+    }).catch(function () {
+      sync.flushing = false;
+      setSyncStatus('error');
+      sync.retryTimer = setTimeout(flush, 8000);
+    });
+  }
+
+  function poll(full) {
+    if (!sync.url || sync.flushing || sync.polling || sync.queue.length) return;
+    sync.polling = true;
+    var rev = sync.rev;
+    var useVersion = !full && Date.now() - sync.lastFullAt < FULL_REFRESH_MS;
+    syncGet(sync.url, useVersion).then(function (res) {
+      sync.polling = false;
+      if (!res.ok) throw new Error(res.error || 'bad reply');
+      if (sync.rev !== rev || sync.flushing || sync.queue.length) return;
+      if (!res.unchanged) applyRemote(res, false);
+      setSyncStatus('ok');
+    }).catch(function () {
+      sync.polling = false;
+      setSyncStatus('error');
+    });
+  }
+
+  function startSync() {
+    stopSync();
+    sync.pollTimer = setInterval(function () { if (!document.hidden) poll(false); }, POLL_MS);
+    flush();
+    poll(true);
+  }
+  function stopSync() {
+    clearInterval(sync.pollTimer);
+    clearTimeout(sync.retryTimer);
+  }
+
+  function hasLocalData() {
+    return state.projects.length + state.tasks.length + state.comments.length > 0;
+  }
+  function localAsOps() {
+    return state.projects.map(function (x) { return upsertOp('project', x); })
+      .concat(state.tasks.map(function (x) { return upsertOp('task', x); }))
+      .concat(state.comments.map(function (x) { return upsertOp('comment', x); }));
+  }
+
+  function connectTo(url) {
+    return syncGet(url, false).then(function (res) {
+      if (!res.ok || !Array.isArray(res.records)) throw new Error(res.error || 'Unexpected reply');
+      var uploadLocal = !res.records.length && hasLocalData();
+      sync.url = url;
+      try { localStorage.setItem(SYNC_URL_KEY, url); } catch (e) {}
+      sync.version = null;
+      sync.sig = '';
+      sync.queue = uploadLocal ? localAsOps() : [];
+      saveQueue();
+      if (!uploadLocal) applyRemote(res, true);
+      setSyncStatus('syncing');
+      startSync();
+      if (state.who) renderBoard();
+    });
+  }
+  function disconnect() {
+    stopSync();
+    sync.url = null;
+    sync.queue = [];
+    sync.version = null;
+    sync.sig = '';
+    saveQueue();
+    try { localStorage.removeItem(SYNC_URL_KEY); } catch (e) {}
+    setSyncStatus('local');
+    if (state.who) renderBoard();
+  }
+
+  function extractSyncUrl(text) {
+    var t = String(text || '').trim();
+    var i = t.indexOf('#sync=');
+    if (i !== -1) {
+      try { t = decodeURIComponent(t.slice(i + 6)); } catch (e) { return ''; }
+    }
+    return SYNC_URL_PATTERN.test(t) ? t : '';
+  }
+  function readInviteFromHash() {
+    var url = extractSyncUrl(location.hash);
+    if (location.hash) {
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    }
+    return url;
+  }
+
+  function refreshOpenComments() {
+    var el = document.getElementById('td-comments');
+    if (el && state.openTaskId) renderComments(el, commentsForTask(state.openTaskId));
+  }
+
+  function openSyncModal() {
+    var connected = !!sync.url;
+    var body;
+    if (connected) {
+      var invite = location.href.split('#')[0] + '#sync=' + encodeURIComponent(sync.url);
+      body =
+        '<div class="banner banner-info">Connected — changes sync between everyone using this link.</div>' +
+        '<label>Invite link<input id="sy-invite" class="invite-input" readonly value="' + esc(invite) + '"></label>' +
+        '<p class="muted">Send this to the people who should be on the board. Anyone who has it can read and edit everything, so keep it private.</p>' +
+        '<div class="actions actions-split"><button type="button" class="btn btn-danger" id="sy-disconnect">Disconnect</button>' +
+        '<div class="actions"><button type="button" class="btn btn-ghost" id="sy-copy">Copy invite link</button>' +
+        '<button type="button" class="btn btn-primary" data-role="cancel">Done</button></div></div>' +
+        '<p class="muted">Disconnecting keeps a copy of the board on this device.</p>';
+    } else {
+      body =
+        '<p>Paste the sync link (or an invite link) to share this board between devices. If the shared board already has data it replaces what’s on this device; if it’s empty, this device’s data is uploaded.</p>' +
+        '<div class="banner banner-error" id="sy-error" hidden></div>' +
+        '<label>Sync link<input id="sy-url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></label>' +
+        '<div class="actions"><button type="button" class="btn btn-ghost" data-role="cancel">Cancel</button>' +
+        '<button type="button" class="btn btn-primary" id="sy-connect">Connect</button></div>';
+    }
+    var html = '<div class="modal-head"><h2>Shared board</h2>' +
+      '<button class="btn btn-ghost btn-icon" data-role="close" type="button">✕</button></div>' +
+      '<div class="modal-body">' + body + '</div>';
+
+    openModal(html, function (root) {
+      root.querySelector('[data-role="close"]').onclick = closeModal;
+      root.querySelector('[data-role="cancel"]').onclick = closeModal;
+      if (connected) {
+        var inviteEl = root.querySelector('#sy-invite');
+        inviteEl.addEventListener('focus', function () { inviteEl.select(); });
+        root.querySelector('#sy-copy').onclick = function () {
+          inviteEl.select();
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(inviteEl.value).then(
+              function () { showToast('Invite link copied'); },
+              function () { showToast('Press Ctrl+C to copy the selected link'); }
+            );
+          } else {
+            showToast('Press Ctrl+C to copy the selected link');
+          }
+        };
+        root.querySelector('#sy-disconnect').onclick = function () { disconnect(); closeModal(); };
+      } else {
+        root.querySelector('#sy-connect').onclick = function () {
+          var btn = this;
+          var err = root.querySelector('#sy-error');
+          var url = extractSyncUrl(root.querySelector('#sy-url').value);
+          err.hidden = true;
+          if (!url) {
+            err.hidden = false;
+            err.textContent = 'That doesn’t look like a sync link. It should start with https://script.google.com/ and end with /exec.';
+            return;
+          }
+          btn.disabled = true; btn.textContent = 'Connecting…';
+          connectTo(url).then(function () {
+            closeModal();
+            showToast('Connected to the shared board');
+          }).catch(function () {
+            btn.disabled = false; btn.textContent = 'Connect';
+            err.hidden = false;
+            err.textContent = 'Couldn’t reach the shared board. Check the link, and that the script is deployed with access set to “Anyone”.';
+          });
+        };
+      }
+    });
   }
 
   // ---------------- routing ----------------
@@ -437,7 +779,10 @@
     });
     if (mount) mount(modalRoot);
   }
-  function closeModal() { modalRoot.innerHTML = ''; }
+  function closeModal() {
+    modalRoot.innerHTML = '';
+    state.openTaskId = null;
+  }
 
   function twoStepDelete(btn, label, onConfirm) {
     var armed = false;
@@ -567,11 +912,12 @@
       '</div>';
 
     openModal(html, function (root) {
+      state.openTaskId = task.id;
       root.querySelector('[data-role="close"]').onclick = closeModal;
       root.querySelector('[data-role="cancel"]').onclick = closeModal;
 
       root.querySelector('#td-save').addEventListener('click', function () {
-        updateTask(task.id, {
+        var patch = changedFields(task, {
           title: root.querySelector('#td-title').value.trim() || task.title,
           description: root.querySelector('#td-desc').value.trim(),
           status: root.querySelector('#td-status').value,
@@ -579,6 +925,7 @@
           dueDate: root.querySelector('#td-due').value || null,
           assignee: root.querySelector('[data-role="assignee-select"]').value || null
         });
+        if (Object.keys(patch).length) updateTask(task.id, patch);
         closeModal();
       });
 
@@ -630,11 +977,12 @@
       root.querySelector('[data-role="cancel"]').onclick = closeModal;
       root.querySelector('#f-edit-project').addEventListener('submit', function (e) {
         e.preventDefault();
-        updateProject(project.id, {
+        var patch = changedFields(project, {
           name: root.querySelector('#ep-name').value.trim() || project.name,
           description: root.querySelector('#ep-desc').value.trim(),
           dueDate: root.querySelector('#ep-due').value || null
         });
+        if (Object.keys(patch).length) updateProject(project.id, patch);
         closeModal();
       });
       twoStepDelete(root.querySelector('#ep-delete'), 'Delete project', function () {
@@ -650,7 +998,10 @@
     var projects = state.projects.slice().sort(function (a, b) {
       return (b.updatedAt || '').localeCompare(a.updatedAt || '');
     });
-    var header = '<div class="page-header"><div><h1>Projects</h1><p>Saved in this browser only — nothing is synced between devices.</p></div>' +
+    var subtitle = sync.url
+      ? 'Shared board — changes sync between everyone connected.'
+      : 'Saved on this device only. Use the “Local only” button above to share it between devices.';
+    var header = '<div class="page-header"><div><h1>Projects</h1><p>' + subtitle + '</p></div>' +
       '<button class="btn btn-primary" id="btn-new-project" type="button">+ New project</button></div>';
 
     if (!projects.length) {
@@ -764,6 +1115,7 @@
 
   // ---------------- board root ----------------
   function renderBoard() {
+    if (state.picking) return;
     if (state.route.page === 'dashboard') {
       pageEl.innerHTML = dashboardHTML();
       wireDashboard(pageEl);
@@ -782,10 +1134,13 @@
   // ---------------- shell / boot ----------------
   function renderShell() {
     var slot = document.getElementById('viewer-slot');
-    slot.innerHTML = avatarHTML(state.who) + '<span class="viewer-name">' + esc(state.who) + '</span>' +
+    slot.innerHTML = '<button class="sync-pill" id="sync-pill" type="button"></button>' +
+      avatarHTML(state.who) + '<span class="viewer-name">' + esc(state.who) + '</span>' +
       '<button class="btn btn-ghost btn-small" id="btn-switch-who" type="button">Switch</button>';
     document.getElementById('btn-switch-who').onclick = showWhoPicker;
+    document.getElementById('sync-pill').onclick = openSyncModal;
     document.getElementById('brand-btn').onclick = goDashboard;
+    renderSyncPill();
   }
 
   // ---------------- who-are-you picker ----------------
@@ -799,20 +1154,33 @@
       '<div class="who-buttons">' + buttons + '</div></div>';
   }
   function showWhoPicker() {
+    state.picking = true;
     pageEl.innerHTML = whoPickerHTML();
     Array.prototype.forEach.call(pageEl.querySelectorAll('[data-who]'), function (btn) {
       btn.addEventListener('click', function () { chooseWho(btn.getAttribute('data-who')); });
     });
   }
   function chooseWho(name) {
+    state.picking = false;
     state.who = name;
     try { localStorage.setItem(WHO_KEY, name); } catch (e) {}
     boot();
   }
 
+  var pendingInvite = '';
+
   function boot() {
     renderShell();
     renderBoard();
+    if (pendingInvite) {
+      var url = pendingInvite;
+      pendingInvite = '';
+      connectTo(url).then(function () {
+        showToast('Connected to the shared board');
+      }).catch(function () {
+        showToast('Couldn’t connect with that invite link');
+      });
+    }
   }
 
   function init() {
@@ -820,6 +1188,11 @@
     state.projects = stored.projects;
     state.tasks = stored.tasks;
     state.comments = stored.comments;
+
+    loadSyncSettings();
+    var invite = readInviteFromHash();
+    if (invite && invite !== sync.url) pendingInvite = invite;
+    if (sync.url) startSync();
 
     var saved = null;
     try { saved = localStorage.getItem(WHO_KEY); } catch (e) {}
@@ -830,17 +1203,21 @@
       showWhoPicker();
     }
 
-    // Keep other tabs of this same browser in sync (each device still has its own copy).
+    // Other tabs of this browser share the same device copy; when connected, polling keeps them current.
     window.addEventListener('storage', function (e) {
-      if (e.key !== STORE_KEY) return;
+      if (e.key !== STORE_KEY || sync.url) return;
       var fresh = loadStore();
       state.projects = fresh.projects;
       state.tasks = fresh.tasks;
       state.comments = fresh.comments;
       if (state.who) renderBoard();
     });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(false); });
+    window.addEventListener('online', function () { flush(); poll(false); });
   }
 
   init();
 })();
 </script>
+</body>
+</html>

@@ -1,25 +1,46 @@
 # Anaadi PM
 
-A small project tracker for Dhanush, Rishi and Keshav: projects, a Kanban board, progress, and comments.
+A small project tracker for Dhanush, Rishi and Keshav: projects, a Kanban board, progress, and comments. The board can be shared between devices, with the data kept in a Google Sheet.
 
-## The app
+## How it fits together
 
-**[docs/index.html](docs/index.html)** is the whole thing — one self-contained HTML file. No backend, no database, no build step, no accounts. It runs entirely in the browser and keeps its data in that browser's `localStorage`. (It lives in `docs/` rather than `static/` because that's one of the two folder names GitHub Pages allows.)
+- **[docs/index.html](docs/index.html)** is the whole app: one self-contained HTML file with no build step. It is hosted on GitHub Pages.
+- **[apps-script/Code.gs](apps-script/Code.gs)** is a small script that lives inside a Google Sheet and acts as the board's API. The page reads and writes through it, so the Sheet *is* the database. You can open it any time to see or export the data.
+- Without a Sheet connected, the page still works on its own and keeps its data in that browser only ("Local only" in the top bar).
 
-- On open, pick who you are (Dhanush / Rishi / Keshav) — remembered on that device, used to attribute tasks and comments. Switch anytime from the top bar.
-- Create projects, track status and progress, run a To do / In progress / Done board per project (drag cards between columns), assign tasks, comment on them.
-- Data is **per browser/device**, not shared between the three of you — there's no server to sync it through. Each person keeps their own board on their own device.
+On first open each person picks who they are (Dhanush / Rishi / Keshav). It's remembered per device and used to attribute tasks and comments. There are no passwords.
 
-### Running it
+## Setting up the shared board (once)
 
-Just open the file, or host it anywhere that serves static files (it needs a real `http(s)://` origin for the browser to allow storage — opening it as a bare local file works in most browsers too, but a real host is more reliable):
+1. Create a Google Sheet (any name, e.g. "Anaadi PM data").
+2. **Extensions → Apps Script.** Delete the placeholder code and paste in the contents of [apps-script/Code.gs](apps-script/Code.gs). Save.
+3. In the editor, pick **`setup`** in the function dropdown and click **Run**. Google asks for permission: choose your account, then **Advanced → Go to (project name) (unsafe) → Allow**. (It's your own script, so the warning is expected.) This creates a `data` tab in the Sheet.
+4. **Deploy → New deployment → ⚙ → Web app.** Set **Execute as: Me** and **Who has access: Anyone**, then **Deploy**.
+5. Copy the **Web app URL** (it ends in `/exec`).
+6. Open the board, click **Local only** in the top bar, paste the URL, **Connect**.
+7. Click the (now green) **Synced** button and use **Copy invite link**. Send that link to Rishi and Keshav privately. Opening it connects their device automatically.
 
-- **Netlify Drop**: go to [app.netlify.com/drop](https://app.netlify.com/drop) and drag `docs/index.html` in. Done — instant URL, free, no account strictly required.
-- **GitHub Pages**: push this repo to GitHub, enable Pages in the repo settings (Settings → Pages → Source: Deploy from a branch → `main` / `/docs`).
-- **Vercel**: `vercel deploy` from the `docs/` folder, or drag-and-drop on vercel.com.
+If the Sheet is empty when you connect, whatever is already on that device is uploaded. If the Sheet already has data, it replaces the device's local copy.
 
-Any of these gives you one link to open on each device.
+### If you change `Code.gs` later
 
-## Other folders in this repo
+Paste the new code, then **Deploy → Manage deployments → ✎ → Version: New version → Deploy**. The URL stays the same.
 
-`server/` and `client/` are an earlier, fuller version built with a real backend (accounts, a shared Postgres database, one deployable service). It's not what's being used now — left here only in case a real shared multi-device board is wanted later. Safe to ignore.
+## How sync behaves
+
+- Changes show up on other devices within about 15 seconds, or straight away when you switch back to the tab. It isn't instant live editing.
+- Edits are saved per field, so two people changing different things on the same task don't overwrite each other. If you both change the *same* field at the same moment, the last save wins.
+- If you're offline, your changes are kept and upload automatically once you're back. The top bar shows **Offline** meanwhile.
+- You can edit the Sheet by hand. It's picked up within a minute. Don't rename the header row or the `data` tab.
+
+## Privacy
+
+The repo and the GitHub Pages site are public, so **the Web app URL is deliberately not in the code**. It's only in the Sheet owner's Apps Script and in the invite link you send out. Anyone who has that link can read and edit the whole board, so share it only with your team. If it leaks, create a **New deployment** (a new URL) and disconnect/reconnect everyone.
+
+## Deploying the page
+
+GitHub Pages serves `docs/` from `main` (Settings → Pages → Deploy from a branch → `main` / `/docs`). Push to `main` and it updates in a minute or two.
+
+## Other folders
+
+`server/` and `client/` are an earlier version with a real backend (accounts, Postgres). They're not used now and are safe to ignore.
